@@ -23,6 +23,7 @@ If not, see <http://www.gnu.org/licenses/>.
 #include <cstring>
 
 #ifdef USE_THREADS
+    #include <chrono>
     #include <thread>
     using namespace std::literals::chrono_literals;
 #endif

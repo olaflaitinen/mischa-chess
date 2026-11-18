@@ -824,7 +824,7 @@ class cEngine {
     std::thread mWorker;
     void StartThinkThread(POS *p) {
         mDpCompleted = 0;
-        mWorker = std::thread([&] { Think(p); });
+        mWorker = std::thread([this, p] { Think(p); });   // capture the pointer by value
     }
 
     ~cEngine() { WaitThinkThread(); };  // should fix crash on windows on console closing

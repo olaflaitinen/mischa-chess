@@ -29,6 +29,7 @@ finished games and positions are not repeated.
 import argparse
 import datetime
 import json
+import logging
 import math
 import multiprocessing
 import os
@@ -157,6 +158,11 @@ def parse_tc(tc):
 
 def now():
     return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+
+# python-chess on Python 3.9 logs "Loop ... that handles pid ... is closed" every time an
+# engine process ends after its event loop; it is harmless, so keep it out of the job log
+logging.getLogger("asyncio").setLevel(logging.ERROR)
 
 
 def log(msg):

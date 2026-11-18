@@ -1,0 +1,79 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: linux-x86-64,        os: ubuntu-latest,  popcnt: "OFF" }
+          - { name: linux-x86-64-popcnt, os: ubuntu-latest,  popcnt: "ON"  }
+          - { name: windows-x86-64,        os: windows-latest, popcnt: "OFF" }
+          - { name: windows-x86-64-popcnt, os: windows-latest, popcnt: "ON"  }
+          - { name: macos-arm64,         os: macos-latest,   popcnt: "OFF" }
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DMISCHA_POPCNT=${{ matrix.popcnt }}
+          cmake --build build --config Release --parallel
+
+      - name: Test
+        run: ctest --test-dir build -C Release --output-on-failure
+
+      - name: Package
+        shell: bash
+        run: |
+          dir=mischa-${{ matrix.name }}
+          mkdir -p "$dir"
+          if [ -f build/Release/mischa.exe ]; then
+            cp build/Release/mischa.exe "$dir/mischa.exe"
+          else
+            cp build/mischa "$dir/mischa"
+          fi
+          cp -r books LICENSE README.md AUTHORS CHANGELOG.md "$dir/"
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            7z a "$dir.zip" "$dir" > /dev/null
+          else
+            zip -qr "$dir.zip" "$dir"
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mischa-${{ matrix.name }}
+          path: mischa-${{ matrix.name }}.zip
+
+  publish:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" dist/*.zip \
+            --title "Mischa ${GITHUB_REF_NAME#v}" \
+            --notes-file CHANGELOG.md

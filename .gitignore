@@ -1,0 +1,26 @@
+# build output
+build/
+out/
+cmake-build-*/
+*.o
+*.obj
+*.exe
+*.pdb
+*.ilk
+/mischa
+
+# IDE files
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# calibration output
+*.pgn
+calibration-*.txt

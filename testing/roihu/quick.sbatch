@@ -19,12 +19,19 @@ REPO="${SLURM_SUBMIT_DIR:-$PWD}"
 [ -f "$REPO/testing/run_suite.py" ] || { echo "submit this job from the repository root"; exit 1; }
 WORK="${MISCHA_WORK:-$REPO/testing/work}"
 OUT="${MISCHA_OUT:-$REPO/testing/results/quick-${SLURM_JOB_ID:-local}}"
-WORKERS=$(( ${SLURM_CPUS_PER_TASK:-4} - 2 ))
+WORKERS=$(( ${SLURM_CPUS_PER_TASK:-4} > 4 ? ${SLURM_CPUS_PER_TASK:-4} - 2 : ${SLURM_CPUS_PER_TASK:-4} ))
+
+# Hundreds of engines start at the same time. Loading them from node-local memory instead
+# of the network file system keeps the start-up fast.
+LOCAL="/dev/shm/mischa-${SLURM_JOB_ID:-$$}"
+mkdir -p "$LOCAL"
+trap 'rm -rf "$LOCAL"' EXIT
+cp -r "$WORK/bin/." "$LOCAL/"
 
 "$WORK/venv/bin/python" "$REPO/testing/run_suite.py" \
-    --mischa "$WORK/bin/mischa" \
-    --mischa-asan "$WORK/bin/mischa-asan" \
-    --stockfish "$WORK/bin/stockfish" \
+    --mischa "$LOCAL/mischa" \
+    --mischa-asan "$LOCAL/mischa-asan" \
+    --stockfish "$LOCAL/stockfish" \
     --profile quick \
     --workers "$WORKERS" \
     --out "$OUT"

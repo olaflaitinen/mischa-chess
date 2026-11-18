@@ -88,6 +88,11 @@ PROFILES = {
 
 ALL_STAGES = ["perft", "robustness", "strength", "scale", "human", "analysis", "report"]
 
+# How long python-chess waits for an engine to start or to answer a command (beyond the
+# search time itself). Hundreds of engines starting at once on a busy node can take far
+# longer than python-chess' default of 10 seconds.
+ENGINE_TIMEOUT = 300
+
 # Stockfish's UCI_Elo range
 SF_MIN_ELO = 1320
 SF_MAX_ELO = 3190
@@ -187,9 +192,24 @@ def load_jsonl(path):
     return rows
 
 
+def load_results(path):
+    """Results of a stage, one per job: the latest record wins (re-runs append)."""
+    latest = {}
+    for r in load_jsonl(path):
+        latest[r["id"]] = r
+    return list(latest.values())
+
+
+def failed(record):
+    return bool(record.get("error"))
+
+
 def run_jobs(func, jobs, out_path, workers, label):
-    """Run jobs in parallel, append each result to out_path, skip jobs already done."""
-    done = {r["id"] for r in load_jsonl(out_path)}
+    """Run jobs in parallel, append each result to out_path.
+
+    Jobs that already have a successful result are skipped; jobs that failed before
+    (engine did not start, crashed, timed out) are run again."""
+    done = {r["id"] for r in load_results(out_path) if not failed(r)}
     todo = [j for j in jobs if j["id"] not in done]
     total = len(jobs)
     if not todo:
@@ -198,16 +218,23 @@ def run_jobs(func, jobs, out_path, workers, label):
     log("%s: %d jobs to run (%d already done), %d workers" % (label, len(todo), total - len(todo), workers))
     start = time.time()
     finished = 0
+    errors = 0
     step = max(1, len(todo) // 20)
     with open(out_path, "a") as out, multiprocessing.Pool(processes=min(workers, len(todo))) as pool:
         for result in pool.imap_unordered(func, todo):
             out.write(json.dumps(result) + "\n")
             out.flush()
             finished += 1
+            errors += failed(result)
             if finished % step == 0 or finished == len(todo):
                 elapsed = time.time() - start
                 eta = elapsed / finished * (len(todo) - finished)
-                log("%s: %d/%d done, %.0f s elapsed, about %.0f s left" % (label, finished, len(todo), elapsed, eta))
+                log("%s: %d/%d done, %d errors, %.0f s elapsed, about %.0f s left"
+                    % (label, finished, len(todo), errors, elapsed, eta))
+    if errors:
+        level = "WARNING" if errors > 0.02 * len(todo) else "note"
+        log("%s: %s: %d of %d jobs failed; run the suite again with the same --out to retry them"
+            % (label, level, errors, len(todo)))
 
 
 # ---------------------------------------------------------------------------------------
@@ -341,7 +368,7 @@ def robustness_job(job):
     def start():
         e = RawEngine(path, env)
         e.send("uci")
-        line, _ = e.wait_for("uciok", 60)
+        line, _ = e.wait_for("uciok", ENGINE_TIMEOUT)
         return e if line else None
 
     eng = start()
@@ -411,7 +438,7 @@ def robustness_job(job):
 
         stats["commands"] += 1
         eng.send("isready")
-        eng.wait_for("readyok", 60)
+        eng.wait_for("readyok", ENGINE_TIMEOUT)
         t0 = time.time()
         eng.send(go)
         if kind == "infinite":
@@ -497,8 +524,9 @@ def play_game(job):
 
     mischa = stockfish = None
     try:
-        mischa = chess.engine.SimpleEngine.popen_uci(job["mischa"])
-        stockfish = chess.engine.SimpleEngine.popen_uci(job["stockfish"])
+        time.sleep(random.Random(job["seed"]).uniform(0, 2))   # do not start hundreds of engines at once
+        mischa = chess.engine.SimpleEngine.popen_uci(job["mischa"], timeout=ENGINE_TIMEOUT)
+        stockfish = chess.engine.SimpleEngine.popen_uci(job["stockfish"], timeout=ENGINE_TIMEOUT)
         mischa.configure({
             "UCI_LimitStrength": True, "UCI_Elo": job["mischa_elo"], "HumanTime": job["human_time"],
             "HumanVerbose": True, "UseBook": False, "RandomSeed": job["seed"], "Hash": 16, "Threads": 1,
@@ -670,7 +698,7 @@ def analysis_job(job):
     out = {"id": job["id"], "moves": []}
     engine = None
     try:
-        engine = chess.engine.SimpleEngine.popen_uci(job["stockfish"])
+        engine = chess.engine.SimpleEngine.popen_uci(job["stockfish"], timeout=ENGINE_TIMEOUT)
         engine.configure({"Threads": 1, "Hash": 64})
         board = chess.Board()
         for uci in job["opening"].split():
@@ -706,7 +734,7 @@ def analysis_job(job):
 def stage_analysis(args, profile, out_dir):
     jobs = []
     for stage in ("strength", "human"):
-        for r in load_jsonl(os.path.join(out_dir, stage + ".jsonl")):
+        for r in load_results(os.path.join(out_dir, stage + ".jsonl")):
             if r.get("score") is None:
                 continue
             jobs.append({"id": r["id"], "stockfish": args.stockfish, "depth": profile["analysis_depth"],
@@ -821,7 +849,7 @@ def stage_report(args, profile, out_dir):
         w("")
 
     # robustness
-    rob = load_jsonl(os.path.join(out_dir, "robustness.jsonl"))
+    rob = load_results(os.path.join(out_dir, "robustness.jsonl"))
     if rob:
         tot = {}
         for r in rob:
@@ -856,7 +884,7 @@ def stage_report(args, profile, out_dir):
             w("")
 
     # strength
-    strength = load_jsonl(os.path.join(out_dir, "strength.jsonl"))
+    strength = load_results(os.path.join(out_dir, "strength.jsonl"))
     if strength:
         w("## 3. Playing strength at UCI_Elo 2000")
         w("")
@@ -865,7 +893,7 @@ def stage_report(args, profile, out_dir):
         report_terminations(w, strength)
 
     # scale
-    scale = load_jsonl(os.path.join(out_dir, "scale.jsonl"))
+    scale = load_results(os.path.join(out_dir, "scale.jsonl"))
     if scale:
         w("## 4. UCI_Elo scale")
         w("")
@@ -897,7 +925,7 @@ def stage_report(args, profile, out_dir):
         summary["scale"] = out
 
     # human timing
-    human = load_jsonl(os.path.join(out_dir, "human.jsonl"))
+    human = load_results(os.path.join(out_dir, "human.jsonl"))
     if human:
         w("## 5. Human timing (HumanTime on, %s)" % human[0]["tc"])
         w("")
@@ -930,7 +958,7 @@ def stage_report(args, profile, out_dir):
             summary["human_time"] = {"median": pct(times, 0.5), "p10": pct(times, 0.1), "p90": pct(times, 0.9)}
 
     # analysis
-    ana = load_jsonl(os.path.join(out_dir, "analysis.jsonl"))
+    ana = load_results(os.path.join(out_dir, "analysis.jsonl"))
     if ana:
         moves = [m for r in ana for m in r["moves"]]
         by_game = {r["id"]: r["moves"] for r in ana}
@@ -979,7 +1007,7 @@ def stage_report(args, profile, out_dir):
         json.dump(summary, f, indent=1)
 
     for stage in ("strength", "scale", "human"):
-        recs = load_jsonl(os.path.join(out_dir, stage + ".jsonl"))
+        recs = load_results(os.path.join(out_dir, stage + ".jsonl"))
         if recs:
             write_pgn(recs, os.path.join(out_dir, stage + ".pgn"))
     log("report written to %s" % os.path.join(out_dir, "REPORT.md"))
@@ -1018,10 +1046,20 @@ def report_matches(w, records):
 def report_terminations(w, records):
     counts = {}
     for r in records:
-        key = r["termination"] or ("error: " + (r["error"] or "unknown"))
+        key = r["termination"] or "error"
         counts[key] = counts.get(key, 0) + 1
     w("Game endings: " + ", ".join("%s %d" % (k, v) for k, v in sorted(counts.items(), key=lambda kv: -kv[1])) + ".")
     w("")
+    errors = [r for r in records if failed(r)]
+    if errors:
+        kinds = {}
+        for r in errors:
+            k = (r["error"] or "")[:100]
+            kinds[k] = kinds.get(k, 0) + 1
+        w("**%d of %d games could not be played** and are left out of the ratings: %s. "
+          "Run the suite again with the same output folder to retry them." % (
+              len(errors), len(records), "; ".join("%d x %s" % (v, k) for k, v in kinds.items())))
+        w("")
 
 
 def cpu_model():
@@ -1075,6 +1113,7 @@ def main():
     if args.mischa_asan:
         args.mischa_asan = os.path.abspath(args.mischa_asan)
 
+    args.workers = max(1, args.workers)
     stages = [s.strip() for s in args.stages.split(",") if s.strip()]
     unknown = [s for s in stages if s not in ALL_STAGES]
     if unknown:

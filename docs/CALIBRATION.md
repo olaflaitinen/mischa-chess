@@ -25,6 +25,10 @@ python3 tools/calibrate.py --mischa build/mischa --stockfish /path/to/stockfish 
 Use at least 100 games per anchor for a usable result. With fewer games the error bars are
 wide (around +/- 100 Elo for 40 games).
 
+For a much larger and more detailed evaluation (tens of thousands of games, every `UCI_Elo`
+level, robustness and move-quality analysis) use the test suite in
+[`testing/`](../testing/README.md).
+
 ## Results for version 1.0
 
 Mischa 1.0 with the default `UCI_Elo 2000`, `HumanTime` off, time control 12 s + 0.12 s,

@@ -4,8 +4,8 @@
 
 CXX      ?= g++
 CXXFLAGS ?= -O3
-CXXFLAGS += -std=c++14 -DNDEBUG -Wall -Wno-unknown-pragmas
-LDFLAGS  += -pthread
+override CXXFLAGS += -std=c++14 -DNDEBUG -Wall -Wno-unknown-pragmas
+override LDFLAGS += -pthread
 SRC       = $(wildcard src/*.cpp)
 EXE       = mischa
 

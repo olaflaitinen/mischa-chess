@@ -44,3 +44,42 @@ jobs:
       - uses: actions/checkout@v4
       - run: make
       - run: make test
+
+  suite:
+    name: test suite (perft, robustness, sanitizers)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install tools
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q stockfish
+          pip install chess pyflakes
+
+      - name: Lint Python
+        run: python -m pyflakes testing tests tools
+
+      - name: Build
+        run: |
+          make popcnt
+          make popcnt EXE=mischa-asan CXXFLAGS="-O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined" LDFLAGS="-fsanitize=address,undefined"
+
+      - name: Perft and robustness
+        run: |
+          python testing/run_suite.py --mischa ./mischa --mischa-asan ./mischa-asan \
+            --stockfish /usr/games/stockfish --profile quick \
+            --stages perft,robustness,report --out suite-results
+          cat suite-results/REPORT.md >> "$GITHUB_STEP_SUMMARY"
+          python - <<'PY'
+          import json, sys
+          s = json.load(open("suite-results/summary.json"))
+          bad = {k: v for k, v in s["robustness"].items() if k != "commands" and v}
+          if not s["perft_ok"] or bad:
+              sys.exit("test suite failed: perft_ok=%s %s" % (s["perft_ok"], bad))
+          print("perft ok, %d robustness commands clean" % s["robustness"]["commands"])
+          PY

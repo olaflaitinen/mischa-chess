@@ -54,6 +54,34 @@ const char *ParseToken(const char *string, char *token) {
     return string;
 }
 
+// Counts the leaf nodes of the legal move tree; used to verify the move generator.
+
+static U64 Perft(POS *p, int depth) {
+
+    int list[MAX_MOVES * 2];
+    int *end = p->GenerateCaptures(list);
+    end = p->GenerateQuiet(end);
+
+    U64 nodes = 0;
+    UNDO u[1];
+
+    for (int *m = list; m < end; m++) {
+        p->DoMove(*m, u);
+        if (!p->Illegal())
+            nodes += depth > 1 ? Perft(p, depth - 1) : 1;
+        p->UndoMove(*m, u);
+    }
+    return nodes;
+}
+
+static void RunPerft(POS *p, int depth) {
+
+    if (depth < 1) depth = 1;
+    const int start = GetMS();
+    const U64 nodes = Perft(p, depth);
+    printf("perft %d nodes %" PRIu64 " time %d\n", depth, (U64)nodes, GetMS() - start);
+}
+
 void UciLoop() {
 
     char command[4096], token[80]; const char *ptr;
@@ -101,6 +129,9 @@ void UciLoop() {
         } else if (strcmp(token, "stepp") == 0)      {
             p->ParseMoves(ptr);
             p->PrintBoard();
+        } else if (strcmp(token, "perft") == 0)      {
+            ptr = ParseToken(ptr, token);
+            RunPerft(p, atoi(token));
         } else if (strcmp(token, "bench") == 0)      {
             ptr = ParseToken(ptr, token);
 #ifndef USE_THREADS

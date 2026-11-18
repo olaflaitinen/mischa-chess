@@ -25,7 +25,8 @@ The default strength is `UCI_Elo 2000`. Any level from 1000 to 2600 can be set, 
 
 How the human layer works is described in [docs/HUMANIZER.md](docs/HUMANIZER.md).
 How the strength is measured, and how it relates to FIDE, Lichess and Chess.com ratings, is
-in [docs/CALIBRATION.md](docs/CALIBRATION.md).
+in [docs/CALIBRATION.md](docs/CALIBRATION.md). The complete test suite is described in
+[testing/README.md](testing/README.md).
 
 ## Download
 
@@ -104,6 +105,8 @@ src/              engine sources (OpenTal / Rodent III) and the human layer
 books/            Polyglot opening books
 docs/             how the humanizer works, calibration, Lichess bot setup
 tests/            UCI smoke test
+testing/          full test suite (strength, Elo scale, robustness, move quality),
+                  with job scripts for the CSC Roihu supercomputer
 tools/            calibration script (matches against Stockfish)
 ```
 

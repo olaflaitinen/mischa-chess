@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+* `perft <depth>` UCI command for checking the move generator.
+* Full test suite (`testing/run_suite.py`): perft, robustness with random positions and
+  sanitizers, strength against Stockfish, the whole `UCI_Elo` scale, human timing and move
+  quality analysis, with a Markdown report. Job scripts for the CSC Roihu supercomputer.
+* `make` accepts extra `CXXFLAGS` and `LDFLAGS` on the command line without losing the
+  required flags.
+
 ## 1.0 (2026-11-18)
 
 First release of Mischa, based on OpenTal 1.1 by Pawel Koziol.

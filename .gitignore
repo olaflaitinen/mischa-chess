@@ -24,3 +24,10 @@ __pycache__/
 # calibration output
 *.pgn
 calibration-*.txt
+
+# test suite
+testing/work/
+testing/results/**/*.jsonl
+testing/results/**/config.json
+mischa-quick-*.out
+mischa-full-*.out

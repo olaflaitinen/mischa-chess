@@ -287,6 +287,7 @@ static void WaitUntil(int start_ms, int target_ms) {
             ReadLine(command, sizeof(command));
             if (strcmp(command, "stop") == 0) return;
             if (strcmp(command, "quit") == 0) exit(0);
+            if (strcmp(command, "isready") == 0) printf("readyok\n");
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
     }

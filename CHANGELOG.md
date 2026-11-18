@@ -25,6 +25,10 @@ First release of Mischa, based on OpenTal 1.1 by Pawel Koziol.
 * CMake build for Windows, Linux and macOS, plus a plain Makefile.
 * Fixed the Linux build (missing `<cmath>`) and the macOS build (executable path lookup).
 * Fixed a possible buffer overflow when reading long FEN strings.
+* Fixed a crash of the multi-threaded search: the search thread kept a reference to a
+  variable that went out of scope (seen on macOS).
+* Fixed the MSVC build (missing `<chrono>` include).
+* `isready` is now answered while the engine is thinking.
 * Book files are checked when they are read into memory.
 * Books can be placed in a folder given by the `MISCHA_BOOKS` environment variable.
 * UCI smoke test, calibration script against Stockfish, CI on three platforms and

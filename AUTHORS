@@ -16,7 +16,7 @@ Mischa is built on the work of
     Pawel Koziol         OpenTal and Rodent III, the search and the Tal-style evaluation
     Brendan J. Norman    tuning of the OpenTal personality
     Pablo Vazquez        Sungorus 1.4, the engine Rodent descends from
-    Michael Byrne        the original Elo-to-nodes formula from CraftySkill
+    Michael Byrne        the Elo-to-speed formula in params.cpp, from CraftySkill
 
 All of the above is free software released under the GNU General Public License,
 version 3 or later. Mischa keeps the same license; see LICENSE.

@@ -187,6 +187,18 @@ def main():
         eng.send("stop")
         line, _ = eng.wait_for("bestmove", 10)
         check("stop interrupts the human pause", time.time() - start < 2.0)
+
+        # "isready" while thinking is answered (GUIs use it to check the engine is alive)
+
+        eng.send("ucinewgame")
+        eng.send("position startpos moves e2e4 c7c5 g1f3 d7d6 d2d4 c5d4 f3d4 g8f6 b1c3 a7a6")
+        eng.send("go wtime 600000 btime 600000")
+        time.sleep(0.3)
+        eng.send("isready")
+        line, _ = eng.wait_for("readyok", 5)
+        check("isready answered while thinking", line == "readyok")
+        eng.send("stop")
+        eng.wait_for("bestmove", 10)
     finally:
         eng.close()
 

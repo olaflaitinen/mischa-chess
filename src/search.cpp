@@ -923,6 +923,8 @@ void CheckTimeout() {
 		}
 		else if (strcmp(command, "ponderhit") == 0)
 			Glob.pondering = false;
+		else if (strcmp(command, "isready") == 0)
+			printf("readyok\n");   // a GUI may ping the engine while it thinks
 	}
 
 	if (!Glob.pondering && cEngine::msMoveTime >= 0 && GetMS() - cEngine::msStartTime >= cEngine::msMoveTime)

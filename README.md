@@ -7,9 +7,9 @@
 
 Mischa was the name Mikhail Tal's friends called him by. The engine is built on
 [OpenTal](http://www.pkoziol.cal24.pl/opental) by Pawel Koziol, an engine that already plays
-the attacking, sacrificial chess of "the wizard from Riga". OpenTal is strong, about 2500 to 2600
-on engine lists, and it plays like an engine. Mischa adds a layer that makes it play like
-a person:
+the attacking, sacrificial chess of "the wizard from Riga". OpenTal is strong, around 2500
+to 2600 Elo by its author's estimate, and it plays like an engine. Mischa adds a layer that
+makes it play like a person:
 
 * it looks at a handful of candidate moves to a limited depth, as a club player would,
 * it always finds the obvious moves: short mates, recaptures, hanging pieces,
@@ -84,11 +84,12 @@ ctest --test-dir build -C Release      # runs the UCI smoke test (needs Python 3
 The executable and a copy of the `books` folder end up in `build/` (on Windows with Visual
 Studio in `build/Release/`). Leave out `-DMISCHA_POPCNT=ON` for CPUs older than about 2010.
 
-Without CMake a plain `make` (or `make popcnt`) works on Linux and macOS.
+Without CMake a plain `make` works on Linux and macOS (`make popcnt` for a faster build on
+x86-64 CPUs).
 
 | CMake option | default | effect |
 |---|---|---|
-| `MISCHA_POPCNT` | `OFF` | use the hardware POPCNT instruction, about 10 % faster |
+| `MISCHA_POPCNT` | `OFF` | use the hardware POPCNT instruction (x86-64 only), faster |
 | `MISCHA_NATIVE` | `OFF` | optimise for the CPU of the build machine |
 | `MISCHA_THREADS` | `ON` | build with multi-threaded search |
 
@@ -117,13 +118,3 @@ personality) and Pablo Vazquez (Sungorus). See [AUTHORS](AUTHORS).
 
 Mischa is free software under the [GNU General Public License v3.0](LICENSE) or later, the
 same license as OpenTal and Rodent.
-
----
-
-## Azərbaycanca qısa məlumat
-
-Mischa, Mikhail Tal üslubunda, insan kimi oynayan UCI şahmat mühərrikidir. OpenTal
-mühərriki üzərində qurulub və standart olaraq təxminən FIDE 2000 səviyyəsində oynayır:
-asan gedişləri tapır, mürəkkəb mövqelərdə və vaxt azalanda insan kimi səhv edir, vaxtını
-da insan kimi bölür. Güc səviyyəsi `UCI_Elo` seçimi ilə 1000 ilə 2600 arasında dəyişdirilə
-bilər. Quraşdırma, seçimlər və Lichess bot qurulması yuxarıdakı bölmələrdə izah olunub.

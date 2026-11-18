@@ -1,5 +1,5 @@
 # Simple build without CMake:  make            (portable)
-#                              make popcnt     (CPUs with POPCNT, about 10 % faster)
+#                              make popcnt     (x86-64 CPUs with POPCNT, faster)
 #                              make test       (runs the UCI smoke test)
 
 CXX      ?= g++

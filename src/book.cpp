@@ -18,6 +18,7 @@ If not, see <http://www.gnu.org/licenses/>.
 #include "rodent.h"
 #include "book.h"
 #include <cstdio>
+#include <cmath>
 #include <cstdlib>
 
 // Random numbers from PolyGlot, used to compute book hash keys
@@ -346,8 +347,9 @@ void sBook::OpenPolyglot() {
 	ClosePolyglot();
 
 	if (!isabsolute(bookName))                  // if known locations don't exist we want to load only from absolute paths
-		if (!ChDirEnv("RIIIBOOKS"))             // try `RIIIBOOKS` env var first (26/08/17: linux only)
-			if (!ChDir(_BOOKSPATH)) return;     // next built-in path
+		if (!ChDirEnv("MISCHA_BOOKS"))          // try `MISCHA_BOOKS` env var first (not on Windows)
+			if (!ChDirEnv("RIIIBOOKS"))         // then the older `RIIIBOOKS`
+				if (!ChDir(_BOOKSPATH)) return; // next built-in path
 
 	bookFile = fopen(bookName, "rb");
 
@@ -369,9 +371,13 @@ void sBook::OpenPolyglot() {
 		bookMemory = (unsigned char *)malloc(16 * bookSizeInEntries);
 		if (bookMemory) {
 			rewind(bookFile);
-			fread(bookMemory, 16, bookSizeInEntries, bookFile);
-			fclose(bookFile);
-			bookFile = NULL;
+			if (fread(bookMemory, 16, bookSizeInEntries, bookFile) == (size_t)bookSizeInEntries) {
+				fclose(bookFile);
+				bookFile = NULL;
+			} else {
+				free(bookMemory);   // fall back to reading from the file
+				bookMemory = NULL;
+			}
 		}
 	}
 #endif

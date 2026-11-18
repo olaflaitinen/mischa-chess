@@ -16,6 +16,7 @@ If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "rodent.h"
+#include "humanizer.h"
 #include "book.h"
 #include <cstdio>
 #include <cstdlib>
@@ -44,6 +45,15 @@ void PrintUciOptions() {
 
     printf("option name TimeBuffer type spin default %d min 0 max 1000\n", Glob.time_buffer);
 
+    // human-like play
+
+    printf("option name UCI_LimitStrength type check default %s\n", Human.limit_strength ? "true" : "false");
+    printf("option name UCI_Elo type spin default %d min %d max %d\n", Human.elo, HUMAN_MIN_ELO, HUMAN_MAX_ELO);
+    printf("option name HumanTime type check default %s\n", Human.human_time ? "true" : "false");
+    printf("option name Flair type spin default %d min 0 max 200\n", Human.flair);
+    printf("option name RandomSeed type spin default %d min 0 max 1000000\n", Human.seed);
+    printf("option name HumanVerbose type check default %s\n", Human.verbose ? "true" : "false");
+
 }
 
 static void valuebool(bool& param, char *val) {
@@ -53,15 +63,6 @@ static void valuebool(bool& param, char *val) {
 
     if (strcmp(val, "true")  == 0) param = true;
     if (strcmp(val, "false") == 0) param = false;
-}
-
-// @brief set a value that is a part of Par.values[]
-
-static void setvalue(int ind, int val, bool isTable) {
-
-    Par.values[ind] = val;
-    if (isTable) Par.InitPst();
-    Glob.should_clear = true;
 }
 
 static char *pseudotrimstring(char *in_str) {
@@ -129,10 +130,19 @@ void ParseSetoption(const char *ptr) {
     } else if (strcmp(name, "npslimit") == 0)                                {
         Par.nps_limit = atoi(value);
     } else if (strcmp(name, "uci_elo") == 0)                                 {
-        Par.elo = atoi(value);
-        Par.SetSpeed(Par.elo);
+        Human.SetElo(atoi(value));
     } else if (strcmp(name, "uci_limitstrength") == 0)                       {
-        valuebool(Par.fl_weakening, value);
+        valuebool(Human.limit_strength, value);
+        Human.SetElo(Human.elo);
+    } else if (strcmp(name, "humantime") == 0)                               {
+        valuebool(Human.human_time, value);
+    } else if (strcmp(name, "flair") == 0)                                   {
+        Human.flair = Max(0, Min(200, atoi(value)));
+    } else if (strcmp(name, "randomseed") == 0)                              {
+        Human.seed = Max(0, atoi(value));
+        Human.Reseed();
+    } else if (strcmp(name, "humanverbose") == 0)                            {
+        valuebool(Human.verbose, value);
     } else if (strcmp(name, "ponder") == 0)                                  {
         valuebool(Par.use_ponder, value);
     } else if (strcmp(name, "usebook") == 0)                                 {

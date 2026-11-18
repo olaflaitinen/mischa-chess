@@ -16,6 +16,7 @@ If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "rodent.h"
+#include "humanizer.h"
 #include "book.h"
 #include <cstdio>
 #include <cstdlib>
@@ -70,7 +71,7 @@ void UciLoop() {
             PrintVersion();
 
             Glob.is_console = false;
-            printf("id author Pawel Koziol (based on Sungorus 1.4 by Pablo Vazquez)\n");
+            printf("id author Yunus Imanov (based on OpenTal by Pawel Koziol and Sungorus by Pablo Vazquez)\n");
             PrintOverrides();
             PrintUciOptions();
             printf("uciok\n");
@@ -80,6 +81,8 @@ void UciLoop() {
             p->SetPosition(START_POS);
             srand(GetMS());
             Glob.game_key = p->Random64() ^ (U64) GetMS(); // so that the weakest personalities do not repeat the same game
+            Human.ResetHistory();
+            Human.Reseed();
         } else if (strcmp(token, "isready") == 0)    {
             printf("readyok\n");
         } else if (strcmp(token, "setoption") == 0)  {
@@ -126,8 +129,11 @@ void POS::ParseMoves(const char *ptr) {
 
         const int move = StrToMove(token);
         if (Legal(move)) {
+            const bool is_capture = mPc[Tsq(move)] != NO_PC || MoveType(move) == EP_CAP;
             DoMove(move);
             Glob.moves_from_start++;
+            Human.last_to_sq = Tsq(move);
+            Human.last_was_capture = is_capture;
         }
         else printf("info string illegal move\n");
 
@@ -139,8 +145,9 @@ void POS::ParseMoves(const char *ptr) {
 
 void POS::ParsePosition(const char *ptr) {
 
-    char token[80], fen[80];
+    char token[80], fen[256];
 
+    Human.ResetHistory();
     ptr = ParseToken(ptr, token);
     if (strcmp(token, "fen") == 0) {
         fen[0] = '\0';
@@ -219,6 +226,7 @@ void ParseGo(POS *p, const char *ptr) {
     int wtime = -1, btime = -1;
     int winc  =  0, binc  =  0;
     int movestogo = 40;
+    bool movestogo_given = false;
     bool strict_time = false;
     Glob.pondering = false;
 
@@ -268,6 +276,7 @@ void ParseGo(POS *p, const char *ptr) {
         } else if (strcmp(token, "movestogo") == 0) {
             ptr = ParseToken(ptr, token);
             movestogo = atoi(token);
+            movestogo_given = true;
         }
     }
 
@@ -302,9 +311,19 @@ void ParseGo(POS *p, const char *ptr) {
         }
 
         if (pvb) {
+            if (!strict_time) HumanBookDelay(p->mSide == WC ? wtime : btime);
             printf("bestmove %s\n", MoveToStr(pvb));
             return;
         }
+    }
+
+    // human-like play (default): limited depth, candidate moves, human mistakes and timing
+
+    {
+        const int base = p->mSide == WC ? wtime : btime;
+        const int inc  = p->mSide == WC ? winc  : binc;
+        if (HumanGo(p, base, inc, movestogo, movestogo_given, strict_time))
+            return;
     }
 
     if (Glob.multiPv > 1) {
@@ -354,7 +373,7 @@ void ParseGo(POS *p, const char *ptr) {
 		if (Glob.goodbye)
 			exit(0);
 
-		int *best_pv, best_depth = -1;
+		int *best_pv = Engines.front().mPvEng, best_depth = -1;
 
 		for (auto& engine : Engines)
 			if (best_depth < engine.mDpCompleted) {

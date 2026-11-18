@@ -237,7 +237,9 @@ bool ChDir(const wchar_t *new_path) {
 #else
 void PrintOverrides() {
 
-    if (char *ptr = getenv("RIIIBOOKS"))
+    if (char *ptr = getenv("MISCHA_BOOKS"))
+        printf("info string override for books path: '%s'\n", ptr);
+    else if (char *ptr = getenv("RIIIBOOKS"))
         printf("info string override for books path: '%s'\n", ptr);
     if (char *ptr = getenv("RIIIPERSONALITIES"))
         printf("info string override for personalities path: '%s'\n", ptr);
@@ -273,18 +275,29 @@ bool ChDirEnv(const char *env_name) {
 }
 // constexpr for detecting relative paths
 constexpr bool relative = _BOOKSPATH[0] != '/' || _PERSONALITIESPATH[0] != '/';
+#if defined (__APPLE__)
+    #include <mach-o/dyld.h>
+#endif
 bool ChDir(const char *new_path) {
     if (relative) {
         char exe_path[1024];
+        bool found = false;
 
-        #if defined (__APPLE__)
-            #error something should be done here, look for _NSGetExecutablePath(path, &size)
-        #endif
         // getting the current executable location ...
-        readlink("/proc/self/exe", exe_path, sizeof(exe_path)); *(strrchr(exe_path, '/') + 1) = '\0';
+        #if defined (__APPLE__)
+            uint32_t size = sizeof(exe_path);
+            found = _NSGetExecutablePath(exe_path, &size) == 0;
+        #else
+            ssize_t len = readlink("/proc/self/exe", exe_path, sizeof(exe_path) - 1);
+            if (len > 0) { exe_path[len] = '\0'; found = true; }
+        #endif
 
-        printf_debug("go to '%s'\n", exe_path);
-        chdir(exe_path); // go to the exe location, it's for relative paths
+        char *slash = found ? strrchr(exe_path, '/') : NULL;
+        if (slash) {
+            *(slash + 1) = '\0';
+            printf_debug("go to '%s'\n", exe_path);
+            if (chdir(exe_path) != 0) return false; // go to the exe location, it's for relative paths
+        }
     }
     printf_debug("go to '%s'\n", new_path);
     return chdir(new_path) == 0;

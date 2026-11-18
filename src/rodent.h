@@ -65,6 +65,8 @@ using U64 = uint64_t;
     #undef USE_THREADS
 #endif
 
+#define MISCHA_VERSION "1.0"
+
 enum eColor      { WC, BC, NO_CL };
 enum ePieceType  { P, N, B, R, Q, K, NO_TP };
 enum ePiece      { WP, BP, WN, BN, WB, BBi, WR, BR, WQ, BQ, WK, BK, NO_PC };
@@ -454,6 +456,18 @@ struct Line {
 	int pv[MAX_PLY];
 };
 
+// Result of the human-like multi-candidate search (see humanizer.cpp)
+
+struct sHumanResult {
+    int n;                          // number of candidate moves found
+    int depth;                      // last fully completed depth
+    int best_changes;               // how often the top move changed from depth 3 onwards
+    int first_impression;           // best move after depth 2 (what a quick glance suggests)
+    int move[MAX_PV + 1];
+    int score[MAX_PV + 1];
+    int pv[MAX_PV + 1][MAX_PLY];
+};
+
 enum Values {
     P_MID, P_END, N_MID, N_END, B_MID, B_END, R_MID, R_END, Q_MID, Q_END,               // piece values
     B_PAIR, N_PAIR, R_PAIR, ELEPH, A_EXC, A_TWO, A_MAJ, A_MIN, A_ALL,                   // material adjustments
@@ -823,6 +837,7 @@ class cEngine {
     void ClearAll();
     void Think(POS *p);
 	void MultiPv(POS *p, int * pv);
+    void HumanSearch(POS *p, int max_depth, int n_cand, sHumanResult *res);
 };
 
 #ifdef USE_THREADS

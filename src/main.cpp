@@ -16,6 +16,7 @@ If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "rodent.h"
+#include "humanizer.h"
 #include "book.h"
 #include <cstdlib>
 
@@ -36,7 +37,7 @@ sInternalBook InternalBook;
 
 void PrintVersion() {
 
-    printf("id name OpenTal 1.1"
+    printf("id name Mischa " MISCHA_VERSION
 
 #ifdef DEBUG
 #if !(defined(_WIN64) || defined(__x86_64__))
@@ -86,6 +87,7 @@ int main() {
     Par.DefaultWeights();
     Par.InitTables();
 	Par.use_ponder = false;
+    Human.Init();
     Mask.Init();
     Dist.Init();
 
